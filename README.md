@@ -1,2 +1,184 @@
-# pocket-pruner
-Offline pruner of Pocket Network
+# Pocket-Pruner
+
+Pocket Pruner is an offline pruner of [Pocket Network](https://www.pokt.network/)
+developed by [C0D3R](https://c0d3r.org/).
+
+As of writing, a full node of Pocket Network requires about 700 GB of disk space
+to store the historic blockchain data from the genesis and grows by about 2 GB/day.
+This means that all node runners will continuously need to expand storage space.
+
+Pocket Pruner solves this problem by 'pruning' the data directory.  Pruning is
+the process of erasing older data to save disk space.  Because such old data is
+needed in limited cases only (See the ["Pruning rules"](#pruning-rules) below),
+not all nodes have to keep full data from the genesis.  Node runners can run
+this tool offline to bring the total storage back down to 100 GB or less in about
+2-3 hours.  This step can be done periodically to keep the total disk storage
+within a limited range.  Once pruning is done, pruning pruned data again takes
+about an hour.
+
+## How to prune data
+
+Data of Pocket Network consists of the following goleveldb database directories.
+Pocket Pruner processes each database independently.  It does not touch other
+files or directories such as pocket_evidence.db or cs.wal.
+
+- dataDir/application.db
+- dataDir/blockstore.db
+- dataDir/state.db
+- dataDir/txindexer.db
+
+To start pruning, you stop the pocket-core binary and execute the following
+command.
+
+```
+$ pruner <pruneBeforeBlock> <dataDir> <databases>
+
+Where
+  pruneBeforeBlock:
+	specifies the oldest height to keep in the data directory.
+  dataDir:
+	specifies the path to the data directory.  By default it's ~/.pocket/data
+	unless you run the pocket with the `--datadir` option.
+  databases:
+	specifies the names of databases to prune as a comma-separated list.  The
+	supported names are `application`, `blockstore`, `state`, and `txindexer`.
+```
+
+For example, the following command erases all data before the block 80000.
+Please note that with this command, data at block 79999 and older is erased, and
+data at block 80000 and newer is kept.
+
+```
+$ pruner 80000 ~/.pocket/data application,blockstore,txindexer,state
+```
+
+Pruning full data could take 2-3 hours to finish.  Once finished, the following
+new directories are created side by side with the original directories.  Pocket
+Pruner does not modify the original directories, which means that a node to be
+pruned needs to have extra space to keep both the original data and pruned data
+at the same time.
+
+- dataDir/application-new.db
+- dataDir/blockstore-new.db
+- dataDir/state-new.db
+- dataDir/txindexer-new.db
+
+Then the following commands replace the data directories with the pruned ones.
+
+```
+$ rm -rf dataDir/application.db
+$ mv dataDir/application-new.db dataDir/application.db
+$ rm -rf dataDir/blockstore.db
+$ mv dataDir/blockstore-new.db dataDir/blockstore.db
+$ rm -rf dataDir/state.db
+$ mv dataDir/state-new.db dataDir/state.db
+$ rm -rf dataDir/txindexer.db
+$ mv dataDir/txindexer-new.db dataDir/txindexer.db
+```
+
+After switching directories, you can start the pocket-core binary in a normal way.
+
+## Pruning rules
+
+1. This is an offline tool.  The pocket-core binary must be stopped while pruning.
+
+2. Do not run pruned data on a node that is pointed as an external gateway of
+Pocket Network (Chain ID 0001) in chains.json because any Pocket gateway may
+receive relays to query for any block at any time.
+
+3. When a node processes and validates a proof transaction, it needs to access
+information at the session height of the proof's corresponding claim.  This
+means all nodes, even if it's not staked, application.db needs to have blocks at
+all valid session heights.  Otherwise the node will stop syncing.  **We
+recommend keeping at least `pos/BlocksPerSession * pocketcore/ClaimExpiration`
+blocks in application.db**, which is currently 96 blocks in the Pocket mainnet.
+
+4. A tendermint block contains a field named [Evidence](https://github.com/tendermint/tendermint/blob/main/spec/consensus/evidence.md) that stores duplicated vote information if detected.
+When a node validates a proposed block with Evidence, it needs to access
+information at the height of its duplicated votes.  The expiration period of
+Evidence is defined as the tendermint's parameter `ConsensusParams.Evidence.MaxAge`,
+which is currently 120000000000 in the Pocket mainnet.  This means Evidence in
+the Pocket mainnet never expires.  If the node fails to validate the duplicated
+vote information because of pruning, the Pocket process stops running.  **We
+recommend not pruning state.db.**
+
+## Example commands
+
+```
+$ pocket query height
+2023/07/06 01:23:02 Initializing Pocket Datadir
+2023/07/06 01:23:02 datadir = /home/ubuntu/.pocket
+http://localhost:8082/v1/query/height
+{
+    "height": 100010
+}
+
+$ sudo systemctl stop pocket
+
+$ du -d1 -h .pocket/data
+26G     .pocket/data/state.db
+1022M   .pocket/data/cs.wal
+323G    .pocket/data/application.db
+171G    .pocket/data/blockstore.db
+182G    .pocket/data/txindexer.db
+6.6M    .pocket/data/evidence.db
+702G    .pocket/data
+
+$ nohup ./pruner 99800 ~/.pocket/data application,blockstore,txindexer >prune.log&
+
+$ tail -f prune.log
+2023/07/06 01:24:14 Pruning before block: 99800
+2023/07/06 01:24:15 application.db - s/k:application/
+2023/07/06 01:24:35 application.db - s/k:auth/
+2023/07/06 01:25:13 application.db - s/k:auth/ 100000000
+2023/07/06 01:25:50 application.db - s/k:auth/ 200000000
+2023/07/06 01:26:27 application.db - s/k:auth/ 300000000
+2023/07/06 01:27:07 application.db - s/k:auth/ 400000000
+2023/07/06 01:27:47 application.db - s/k:auth/ 500000000
+2023/07/06 01:28:23 Done - blockstore.db
+...
+2023/07/06 02:14:26 application.db - s/k:pos/ 1700000000
+2023/07/06 03:57:29 Done - application.db
+2023/07/06 03:57:29 Completed all tasks.
+
+$ du -d1 -h .pocket/data
+26G     .pocket/data/state.db
+1022M   .pocket/data/cs.wal
+595M    .pocket/data/blockstore-new.db
+323G    .pocket/data/application.db
+1.2G    .pocket/data/application-new.db
+171G    .pocket/data/blockstore.db
+19G     .pocket/data/txindexer-new.db
+182G    .pocket/data/txindexer.db
+6.6M    .pocket/data/evidence.db
+722G    .pocket/data
+
+$ mv .pocket/data/application.db ~/application-original.db
+$ mv .pocket/data/blockstore.db ~/blockstore-original.db
+$ mv .pocket/data/txindexer.db ~/txindexer-original.db
+$ mv .pocket/data/application-new.db .pocket/data/application.db
+$ mv .pocket/data/blockstore-new.db .pocket/data/blockstore.db
+$ mv .pocket/data/txindexer-new.db .pocket/data/txindexer.db
+
+$ du -d1 -h .pocket/data
+26G     .pocket/data/state.db
+1022M   .pocket/data/cs.wal
+1.2G    .pocket/data/application.db
+595M    .pocket/data/blockstore.db
+19G     .pocket/data/txindexer.db
+6.6M    .pocket/data/evidence.db
+47G     .pocket/data
+
+$ sudo systemctl start pocket
+
+$ pocket query height
+2023/07/06 07:27:31 Initializing Pocket Datadir
+2023/07/06 07:27:31 datadir = /home/ubuntu/.pocket
+http://localhost:8082/v1/query/height
+{
+    "height": 100010
+}
+
+$ curl -X POST -d '{"height":99799}' localhost:8082/v1/query/block
+{"block":null,"block_id":{"hash":"","parts":{"hash":"","total":"0"}}}
+```
