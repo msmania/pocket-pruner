@@ -12,6 +12,7 @@ import (
 	"github.com/tendermint/go-amino"
 )
 
+// getChildrenFromNode returns the left and right children of a node.
 func getChildrenFromNode(buf []byte) (leftHash, rightHash []byte, err error) {
 	height, n, cause := amino.DecodeInt8(buf)
 	if cause != nil {
@@ -26,6 +27,8 @@ func getChildrenFromNode(buf []byte) (leftHash, rightHash []byte, err error) {
 
 	buf = buf[n:]
 
+	// DISCUSS_IN_THIS_PR: Do you have a link to the spec for this or did you figure
+	// it out through code inspection?
 	_, n, cause = amino.DecodeVarint(buf)
 	if cause != nil {
 		err = errors.Wrap(cause, "decoding node.size")
@@ -49,7 +52,7 @@ func getChildrenFromNode(buf []byte) (leftHash, rightHash []byte, err error) {
 
 	leftHash, n, cause = amino.DecodeByteSlice(buf)
 	if cause != nil {
-		err = errors.Wrap(cause, "deocding node.leftHash")
+		err = errors.Wrap(cause, "decoding node.leftHash")
 		return
 	}
 	buf = buf[n:]
@@ -63,6 +66,7 @@ func getChildrenFromNode(buf []byte) (leftHash, rightHash []byte, err error) {
 	return
 }
 
+// recursiveTreeCopy does a deep copy of the tree from srcDb to dstDb.
 func recursiveTreeCopy(srcDb, dstDb *leveldb.DB, prefix, hash []byte) {
 	if len(hash) == 0 {
 		return
@@ -90,8 +94,8 @@ func recursiveTreeCopy(srcDb, dstDb *leveldb.DB, prefix, hash []byte) {
 	recursiveTreeCopy(srcDb, dstDb, prefix, r)
 }
 
-func unmarshalBinaryLengthPrefixed(
-	codec *amino.Codec, bz []byte, ptr interface{}) error {
+// unmarshalBinaryLengthPrefixed unmarshals a binary length-prefixed object.
+func unmarshalBinaryLengthPrefixed(codec *amino.Codec, bz []byte, ptr interface{}) error {
 	if len(bz) == 0 {
 		return errors.New("Cannot decode empty bytes")
 	}
@@ -110,8 +114,14 @@ func unmarshalBinaryLengthPrefixed(
 	return codec.UnmarshalBinaryBare(bz, ptr)
 }
 
+// pruneAppDb prunes the application database from dir+"/application.db to dir+"/application-new.db"
+// and does not prune any key with the prefix in appDbPrefixes.
 func pruneAppDb(
-	pruneBeforeBlock int, dir string, wg *sync.WaitGroup, verify bool) {
+	pruneBeforeBlock int,
+	dir string,
+	wg *sync.WaitGroup,
+	verify bool,
+) {
 	srcDb, err := leveldb.OpenFile(dir+"/application.db", nil)
 	if err != nil {
 		log.Fatal("Failed to open txindexer" + dir)
@@ -132,6 +142,7 @@ func pruneAppDb(
 		return
 	}
 
+	// TODO_DISCUSS_IN_THIS_PR: Is the version the height? If so, can we update it everywhere for claeity?
 	// 1. LatestVersion: s/latest
 	latestBytes, err := srcDb.Get(keyLatest, nil)
 	if err != nil {
@@ -170,6 +181,7 @@ func pruneAppDb(
 			}
 			keyType := key[len(prefix)]
 
+			// TODO_DISCUSS_IN_THIS_PR: What are the key types? Can we add some documentation
 			switch keyType {
 			case 'n':
 				// Node records are written through root records
@@ -195,6 +207,7 @@ func pruneAppDb(
 				log.Fatal("Unknown: ", string(key))
 			}
 
+			// Periodically print progress
 			count++
 			if count%100000000 == 0 {
 				log.Println("application.db -", string(prefix), count)

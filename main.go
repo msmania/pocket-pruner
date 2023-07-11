@@ -168,10 +168,14 @@ func pruneTxIndexer(dir string, wg *sync.WaitGroup, verify bool) {
 	log.Println("Done - txindexer.db")
 }
 
-// pruneAppDb prunes the application.db from dir+"/application.db" to dir+"/application-new.db"
-// and does not prune any key with the prefix in appDbPrefixes.
+// pruneBlockstore prunes the blockstore from dir+"/blockstore.db" to dir+"/blockstore-new.db"
+// and does not prune any key with the prefix in blockstorePrefixes.
 func pruneBlockstore(
-	pruneBeforeBlock int, dir string, wg *sync.WaitGroup, verify bool) {
+	pruneBeforeBlock int,
+	dir string,
+	wg *sync.WaitGroup,
+	verify bool,
+) {
 	dbb, err := leveldb.OpenFile(dir+"/blockstore.db", nil)
 	if err != nil {
 		log.Fatal("Failed to open blockstore" + dir)
@@ -277,10 +281,14 @@ func pruneBlockstore(
 	log.Println("Done - blockstore.db")
 }
 
-// pruneAppDb prunes the application.db from dir+"/state.db" to dir+"/state-new.db"
+// pruneStateDb prunes the application.db from dir+"/state.db" to dir+"/state-new.db"
 // and does not prune any key with the prefix in stateDbPrefixes.
 func pruneStateDb(
-	pruneBeforeBlock int, dir string, wg *sync.WaitGroup, verify bool) {
+	pruneBeforeBlock int,
+	dir string,
+	wg *sync.WaitGroup,
+	verify bool,
+) {
 	srcDb, err := leveldb.OpenFile(dir+"/state.db", nil)
 	if err != nil {
 		log.Fatal("Failed to open state" + dir)
