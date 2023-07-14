@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -195,8 +194,6 @@ func pruneBlockstore(
 		return
 	}
 
-	// TODO_DISCUSS_IN_THIS_PR: We are not actually utilizing `blockstorePrefixes` anywhere
-
 	iter := dbb.NewIterator(nil, nil)
 	for iter.Next() {
 		key := iter.Key()
@@ -204,78 +201,37 @@ func pruneBlockstore(
 		var stringKey = string(key)
 		var inserted = false
 
-		// TODO_DISCUSS_IN_THIS_PR: Can we not create a helper and loop over `blockstorePrefixes`
+		for _, prefix := range blockstorePrefixes {
+			if bytes.HasPrefix([]byte(stringKey), prefix) {
+				chunks := strings.SplitN(stringKey, ":", 3)
+				if len(chunks) < 2 {
+					log.Fatal("Cannot convert ", stringKey)
+				}
+				var intKey, err = strconv.Atoi(chunks[1])
+				if err != nil {
+					log.Fatal("Cannot convert ", stringKey)
+				}
 
-		// block commits
-		if strings.HasPrefix(stringKey, "C:") {
-			var replaceKey = strings.Replace(stringKey, "C:", "", -1)
-			var intKey, err = strconv.Atoi(replaceKey)
-			if err != nil {
-				log.Fatal("Cannot convert ", replaceKey)
-			}
-			// Why intKey+1?
-			// height-1 is set to the integer part of the blockCommit key.
-			// See store.SaveBlock in tendermint.
-			if intKey > 1 && (intKey+1) < pruneBeforeBlock {
-				dbn.Put(key, nil, nil)
-			} else {
-				dbn.Put(key, value, nil)
-			}
-			inserted = true
-		}
+				pruneBeforeBlockToCheck := pruneBeforeBlock
+				if strings.HasPrefix(stringKey, "C:") {
+					// Why decrement here?
+					// height-1 is set to the integer part of the blockCommit key.
+					// See store.SaveBlock in tendermint.
+					pruneBeforeBlockToCheck--
+				}
 
-		// block meta
-		if strings.HasPrefix(stringKey, "H:") {
-			var replaceKey = strings.Replace(stringKey, "H:", "", -1)
-			var intKey, err = strconv.Atoi(replaceKey)
-			if err != nil {
-				log.Fatal("Cannot convert ", replaceKey)
+				if intKey > 1 && intKey < pruneBeforeBlockToCheck {
+					dbn.Put(key, nil, nil)
+				} else {
+					dbn.Put(key, value, nil)
+				}
+				inserted = true
 			}
-			if intKey > 1 && intKey < pruneBeforeBlock {
-				dbn.Put(key, nil, nil)
-			} else {
-				dbn.Put(key, value, nil)
-			}
-			inserted = true
-		}
-
-		// block seen commit
-		if strings.HasPrefix(stringKey, "SC:") {
-			var replaceKey = strings.Replace(stringKey, "SC:", "", -1)
-			var intKey, err = strconv.Atoi(replaceKey)
-			if err != nil {
-				log.Fatal("Cannot convert ", replaceKey)
-			}
-			if intKey > 1 && intKey < pruneBeforeBlock {
-				dbn.Put(key, nil, nil)
-			} else {
-				dbn.Put(key, value, nil)
-			}
-			inserted = true
-		}
-
-		// block parts
-		if strings.HasPrefix(stringKey, "P:") {
-			var replaceKey = strings.Replace(stringKey, "P:", "", -1)
-			re := regexp.MustCompile(`:(\d)+$`)
-			replaceKey = re.ReplaceAllString(replaceKey, "")
-
-			var intKey, err = strconv.Atoi(replaceKey)
-			if err != nil {
-				log.Fatal("Cannot convert ", replaceKey)
-			}
-			if intKey > 1 && intKey < pruneBeforeBlock {
-				dbn.Put(key, nil, nil)
-			} else {
-				dbn.Put(key, value, nil)
-			}
-			inserted = true
 		}
 
 		if !inserted {
 			dbn.Put(key, value, nil)
 		}
-
 	}
 	iter.Release()
 	log.Println("Done - blockstore.db")
