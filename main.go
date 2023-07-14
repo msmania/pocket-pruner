@@ -141,7 +141,6 @@ func pruneTxIndexer(dir string, wg *sync.WaitGroup, verify bool) {
 		wg.Done()
 	}()
 
-	// TODO_DISCUSS_IN_THIS_PR: When is `strings.HasSuffix(db, "!")` true? Not documented anywhere.
 	if verify {
 		verifyTxIndexer(dstDb, srcDb)
 		return
@@ -214,8 +213,9 @@ func pruneBlockstore(
 			if err != nil {
 				log.Fatal("Cannot convert ", replaceKey)
 			}
-			// TODO_DISCUSS_IN_THIS_PR: Unclear to me what `C int is 1 lower than height` means: can we update the comment?
-			// C int is 1 lower than height
+			// Why intKey+1?
+			// height-1 is set to the integer part of the blockCommit key.
+			// See store.SaveBlock in tendermint.
 			if intKey > 1 && (intKey+1) < pruneBeforeBlock {
 				dbn.Put(key, nil, nil)
 			} else {
@@ -317,14 +317,13 @@ func pruneStateDb(
 
 		for _, prefix := range stateDbPrefixes {
 			if bytes.HasPrefix(key, prefix) {
-				versionBytes := key[len(prefix):]
-				var version, err = strconv.Atoi(string(versionBytes))
+				heightBytes := key[len(prefix):]
+				var height, err = strconv.Atoi(string(heightBytes))
 				if err != nil {
 					log.Fatal("Cannot convert ", string(key))
 				}
 
-				// TODO_DISCUSS_IN_THIS_PR: Unclear what `version` is. Is it the height?
-				if version > 1 && version < pruneBeforeBlock {
+				if height > 1 && height < pruneBeforeBlock {
 					dstDb.Put(key, nil, nil)
 				} else {
 					dstDb.Put(key, value, nil)

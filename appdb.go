@@ -13,6 +13,7 @@ import (
 )
 
 // getChildrenFromNode returns the left and right children of a node.
+// This function is based on iavl.MakeNode in pocket-core.
 func getChildrenFromNode(buf []byte) (leftHash, rightHash []byte, err error) {
 	height, n, cause := amino.DecodeInt8(buf)
 	if cause != nil {
@@ -27,8 +28,6 @@ func getChildrenFromNode(buf []byte) (leftHash, rightHash []byte, err error) {
 
 	buf = buf[n:]
 
-	// DISCUSS_IN_THIS_PR: Do you have a link to the spec for this or did you figure
-	// it out through code inspection?
 	_, n, cause = amino.DecodeVarint(buf)
 	if cause != nil {
 		err = errors.Wrap(cause, "decoding node.size")
@@ -142,7 +141,6 @@ func pruneAppDb(
 		return
 	}
 
-	// TODO_DISCUSS_IN_THIS_PR: Is the version the height? If so, can we update it everywhere for claeity?
 	// 1. LatestVersion: s/latest
 	latestBytes, err := srcDb.Get(keyLatest, nil)
 	if err != nil {
@@ -181,7 +179,13 @@ func pruneAppDb(
 			}
 			keyType := key[len(prefix)]
 
-			// TODO_DISCUSS_IN_THIS_PR: What are the key types? Can we add some documentation
+			// Under each of appDBPrefixes, data entries of application.db consists
+			// of three types of key-value data.  keyType is a single character
+			// indicating which type of data as follows.
+			//  'n' - Node key
+			//  'o' - Orphan key
+			//  'r' - Root key
+			// See pocket-core's store/iavl/nodedb.go for more details.
 			switch keyType {
 			case 'n':
 				// Node records are written through root records
