@@ -11,6 +11,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
+// toPrintable converts a byte array to a string, escaping non-printable characters.
 func toPrintable(arr []byte) (str string) {
 	const printable = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" +
 		" 0123456789~!@#$%^&*()_+`{}|[]:\";'<>?,./"
@@ -24,8 +25,7 @@ func toPrintable(arr []byte) (str string) {
 	return
 }
 
-func recursiveVerify(
-	dbNew, dbBase *leveldb.DB, prefix, hash []byte) (bool, int) {
+func recursiveVerifyAppDbHelper(dbNew, dbBase *leveldb.DB, prefix, hash []byte) (bool, int) {
 	if len(hash) == 0 {
 		return true, 0
 	}
@@ -43,7 +43,7 @@ func recursiveVerify(
 
 	targetNode, err := dbNew.Get(nodeKey, nil)
 	if err != nil {
-		log.Printf("Cannot load %s from the targetn", toPrintable(nodeKey))
+		log.Printf("Cannot load %s from the target node", toPrintable(nodeKey))
 		return false, 1
 	}
 
@@ -59,11 +59,11 @@ func recursiveVerify(
 		return false, 1
 	}
 
-	verified, leftCount := recursiveVerify(dbNew, dbBase, prefix, l)
+	verified, leftCount := recursiveVerifyAppDbHelper(dbNew, dbBase, prefix, l)
 	if !verified {
 		ok = false
 	}
-	verified, rightCount := recursiveVerify(dbNew, dbBase, prefix, r)
+	verified, rightCount := recursiveVerifyAppDbHelper(dbNew, dbBase, prefix, r)
 	if !verified {
 		ok = false
 	}
@@ -101,7 +101,7 @@ func verifyApplicationDb(dbNew, dbBase *leveldb.DB, pruneBeforeBlock int) {
 			case 'r':
 				version := int64(binary.BigEndian.Uint64(key[len(prefix)+1:]))
 				if version >= int64(pruneBeforeBlock) {
-					v, c := recursiveVerify(dbNew, dbBase, prefix, value)
+					v, c := recursiveVerifyAppDbHelper(dbNew, dbBase, prefix, value)
 					count += c
 					if !v {
 						ok = false

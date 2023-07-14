@@ -14,6 +14,11 @@ import (
 )
 
 var (
+	// Prefixes for all the different stores: applicationDB, blockstore, stateDB, txIndexer
+	//
+	// The prefix represents which keys SHOULD be kept. Keys without these prefixes are pruned
+	// if before the pruned height provided.
+
 	appDbPrefixes = [][]byte{
 		[]byte("s/k:application/"),
 		[]byte("s/k:auth/"),
@@ -58,6 +63,7 @@ USAGE:
 		return
 	}
 
+	// Validate `pruneBeforeBlock` argument
 	var pruneBeforeBlock = 0
 	if len(os.Args) > 1 {
 		var err error
@@ -69,6 +75,7 @@ USAGE:
 		log.Fatal("Must specify pruneBeforeBlock as argument 0")
 	}
 
+	// Validate `dir` argument
 	var dir string
 	if len(os.Args) > 2 {
 		dir = os.Args[2]
@@ -76,6 +83,7 @@ USAGE:
 		log.Fatal("Must specify working directory as argument 1")
 	}
 
+	// Prepare `databases` argument
 	var databases []string
 	if len(os.Args) > 3 {
 		databases = strings.Split(os.Args[3], ",")
@@ -85,6 +93,7 @@ USAGE:
 
 	log.Println("Pruning before block:", pruneBeforeBlock)
 
+	// Prune each database in parallel and wait for all of them to complete before returning
 	var wg sync.WaitGroup
 	for _, db := range databases {
 		verify := false
@@ -114,6 +123,8 @@ USAGE:
 	log.Println("Completed all tasks.")
 }
 
+// pruneTxIndexer prunes the txindexer from dir+"/txindexer.db to dir+"/txindexer-new.db"
+// and does not prune any key with the prefix in txIndexerPrefixes.
 func pruneTxIndexer(dir string, wg *sync.WaitGroup, verify bool) {
 	srcDb, err := leveldb.OpenFile(dir+"/txindexer.db", nil)
 	if err != nil {
@@ -130,6 +141,7 @@ func pruneTxIndexer(dir string, wg *sync.WaitGroup, verify bool) {
 		wg.Done()
 	}()
 
+	// TODO_DISCUSS_IN_THIS_PR: When is `strings.HasSuffix(db, "!")` true? Not documented anywhere.
 	if verify {
 		verifyTxIndexer(dstDb, srcDb)
 		return
@@ -144,7 +156,7 @@ func pruneTxIndexer(dir string, wg *sync.WaitGroup, verify bool) {
 
 		for _, prefix := range txIndexerPrefixes {
 			if bytes.HasPrefix(key, prefix) {
-				// Value is TxHash.  Keep these as is.
+				// Value is TxHash. DO NOT prune.
 				value = it.Value()
 				break
 			}
@@ -156,8 +168,14 @@ func pruneTxIndexer(dir string, wg *sync.WaitGroup, verify bool) {
 	log.Println("Done - txindexer.db")
 }
 
+// pruneBlockstore prunes the blockstore from dir+"/blockstore.db" to dir+"/blockstore-new.db"
+// and does not prune any key with the prefix in blockstorePrefixes.
 func pruneBlockstore(
-	pruneBeforeBlock int, dir string, wg *sync.WaitGroup, verify bool) {
+	pruneBeforeBlock int,
+	dir string,
+	wg *sync.WaitGroup,
+	verify bool,
+) {
 	dbb, err := leveldb.OpenFile(dir+"/blockstore.db", nil)
 	if err != nil {
 		log.Fatal("Failed to open blockstore" + dir)
@@ -178,12 +196,16 @@ func pruneBlockstore(
 		return
 	}
 
+	// TODO_DISCUSS_IN_THIS_PR: We are not actually utilizing `blockstorePrefixes` anywhere
+
 	iter := dbb.NewIterator(nil, nil)
 	for iter.Next() {
 		key := iter.Key()
 		value := iter.Value()
 		var stringKey = string(key)
 		var inserted = false
+
+		// TODO_DISCUSS_IN_THIS_PR: Can we not create a helper and loop over `blockstorePrefixes`
 
 		// block commits
 		if strings.HasPrefix(stringKey, "C:") {
@@ -192,6 +214,7 @@ func pruneBlockstore(
 			if err != nil {
 				log.Fatal("Cannot convert ", replaceKey)
 			}
+			// TODO_DISCUSS_IN_THIS_PR: Unclear to me what `C int is 1 lower than height` means: can we update the comment?
 			// C int is 1 lower than height
 			if intKey > 1 && (intKey+1) < pruneBeforeBlock {
 				dbn.Put(key, nil, nil)
@@ -258,8 +281,14 @@ func pruneBlockstore(
 	log.Println("Done - blockstore.db")
 }
 
+// pruneStateDb prunes the application.db from dir+"/state.db" to dir+"/state-new.db"
+// and does not prune any key with the prefix in stateDbPrefixes.
 func pruneStateDb(
-	pruneBeforeBlock int, dir string, wg *sync.WaitGroup, verify bool) {
+	pruneBeforeBlock int,
+	dir string,
+	wg *sync.WaitGroup,
+	verify bool,
+) {
 	srcDb, err := leveldb.OpenFile(dir+"/state.db", nil)
 	if err != nil {
 		log.Fatal("Failed to open state" + dir)
@@ -294,6 +323,7 @@ func pruneStateDb(
 					log.Fatal("Cannot convert ", string(key))
 				}
 
+				// TODO_DISCUSS_IN_THIS_PR: Unclear what `version` is. Is it the height?
 				if version > 1 && version < pruneBeforeBlock {
 					dstDb.Put(key, nil, nil)
 				} else {
