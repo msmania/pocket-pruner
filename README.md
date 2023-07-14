@@ -3,6 +3,11 @@
 - [How to prune data](#how-to-prune-data)
 - [Pruning rules](#pruning-rules)
 - [Example commands](#example-commands)
+- [FAQ](#faq)
+  - [How does pruning work?](#how-does-pruning-work)
+  - [What is a `version`?](#what-is-a-version)
+  - [Why do we still use Amino](#why-do-we-still-use-amino)
+  - [What is a \`verifier\`\` and how does it work?](#what-is-a-verifier-and-how-does-it-work)
 
 Pocket Pruner is an offline pruner of [Pocket Network](https://www.pokt.network/)
 developed by [C0D3R](https://c0d3r.org/).
@@ -34,7 +39,7 @@ files or directories such as pocket_evidence.db or cs.wal.
 To start pruning, you stop the pocket-core binary and execute the following
 command.
 
-```
+```bash
 pruner <pruneBeforeBlock> <dataDir> <databases>
 
 Where
@@ -117,7 +122,7 @@ After switching directories, you can start the pocket-core binary in a normal wa
 
 ## Example commands
 
-```
+```bash
 # Query the height
 $ pocket query height
 2023/07/06 01:23:02 Initializing Pocket Datadir
@@ -206,3 +211,21 @@ http://localhost:8082/v1/query/height
 $ curl -X POST -d '{"height":99799}' localhost:8082/v1/query/block
 {"block":null,"block_id":{"hash":"","parts":{"hash":"","total":"0"}}}
 ```
+
+## FAQ
+
+### How does pruning work?
+
+This work is being tracked in #3.
+
+### What is a `version`?
+
+The words `version` and `height` are used interchangeably in the code. This is legacy that was adopted from Cosmos' [iavl](https://github.com/cosmos/iavl) and [CometBFT (formerly known as Tendermint)](https://github.com/cometbft/cometbft).
+
+### Why do we still use Amino
+
+Even though [pocket-core](https://github.com/pokt-network/pocket-core) no longer uses Amino, [iavl](https://github.com/cosmos/iavl) still does and therefore remains as a dependency.
+
+### What is a `verifier`` and how does it work?
+
+`verifier.go` is only used for development purposes and the work to document it is being tracked in #2. For pruning only, it is unnecessary.
