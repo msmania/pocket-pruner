@@ -3,11 +3,11 @@
 - [How to prune data](#how-to-prune-data)
 - [Pruning rules](#pruning-rules)
 - [Example commands](#example-commands)
+- [Verification Mode (for developers only)](#verification-mode-for-developers-only)
 - [FAQ](#faq)
   - [How does pruning work?](#how-does-pruning-work)
   - [What is a `version`?](#what-is-a-version)
   - [Why do we still use Amino](#why-do-we-still-use-amino)
-  - [What is a `verifier` and how does it work?](#what-is-a-verifier-and-how-does-it-work)
 
 Pocket Pruner is an offline pruner of [Pocket Network](https://www.pokt.network/)
 developed by [C0D3R](https://c0d3r.org/).
@@ -213,6 +213,48 @@ $ curl -X POST -d '{"height":99799}' localhost:8082/v1/query/block
 {"block":null,"block_id":{"hash":"","parts":{"hash":"","total":"0"}}}
 ```
 
+## Verification Mode (for developers only)
+
+After pruning is completed, having the original and pruned data side-by-side,
+you can verify the pruned data by running Pocket Pruner in verification mode.
+The way to run Pocket Pruner in verification mode is to append a bang (!) to
+the database name.
+
+Verification is done by loading the original database and checking records that
+should not be pruned surely exist in the pruned database. Therefore **verification
+takes the same amount of time as pruning**.
+
+```
+# Verification mode requires both the original and pruned directories
+$ du -d1 -h ~/.pocket/data
+2.5M    /home/john/.pocket/data/state.db
+28K     /home/john/.pocket/data/evidence.db
+206M    /home/john/.pocket/data/cs.wal
+40K     /home/john/.pocket/data/txindexer.db
+72M     /home/john/.pocket/data/blockstore.db
+75M     /home/john/.pocket/data/application.db
+1.6M    /home/john/.pocket/data/application-new.db
+24K     /home/john/.pocket/data/txindexer-new.db
+1.6M    /home/john/.pocket/data/state-new.db
+8.8M    /home/john/.pocket/data/blockstore-new.db
+366M    /home/john/.pocket/data
+
+# Start the pruner in verification mode to verify all of four databases
+# (In bash, you need to escape bang characters)
+$ /data/bin/pruner 74000 ~/.pocket/data txindexer\!,state\!,blockstore\!,application\!
+2023/07/15 05:23:45 Pruning before block: 74000
+2023/07/15 05:23:45 Checked 36 records in TxIndexer.  All good.
+2023/07/15 05:23:45 Checked 225029 records in State.  All good.
+2023/07/15 05:23:45 Checked 375042 records in BlockStore.  All good.
+2023/07/15 05:23:45 Checked 1227726 records in Application.  All good.
+2023/07/15 05:23:45 Completed all tasks.
+```
+
+This verification mode is for the development purpose. Node runners **MAY** use
+verification mode for their fleet, but **it's not necessary for the pruning
+purpose**.  If pruning is completed successfully, you can assume the pruned data
+is consistent and safe to run.
+
 ## FAQ
 
 ### How does pruning work?
@@ -226,7 +268,3 @@ The words `version` and `height` are used interchangeably in the code. This is l
 ### Why do we still use Amino
 
 Even though [pocket-core](https://github.com/pokt-network/pocket-core) no longer uses Amino, [iavl](https://github.com/cosmos/iavl) still does and therefore remains as a dependency.
-
-### What is a `verifier` and how does it work?
-
-`verifier.go` is only used for development purposes and the work to document it is being tracked in [#2](https://github.com/msmania/pocket-pruner/issues/2). For the pruning purpose, it is unnecessary.
