@@ -7,7 +7,7 @@
   - [How does pruning work?](#how-does-pruning-work)
   - [What is a `version`?](#what-is-a-version)
   - [Why do we still use Amino](#why-do-we-still-use-amino)
-  - [What is a \`verifier\`\` and how does it work?](#what-is-a-verifier-and-how-does-it-work)
+  - [What is a `verifier` and how does it work?](#what-is-a-verifier-and-how-does-it-work)
 
 Pocket Pruner is an offline pruner of [Pocket Network](https://www.pokt.network/)
 developed by [C0D3R](https://c0d3r.org/).
@@ -36,10 +36,10 @@ files or directories such as pocket_evidence.db or cs.wal.
 - dataDir/state.db
 - dataDir/txindexer.db
 
-To start pruning, you stop the pocket-core binary and execute the following
+To start pruning, you stop the pocket-core process and execute the following
 command.
 
-```bash
+```
 pruner <pruneBeforeBlock> <dataDir> <databases>
 
 Where
@@ -64,11 +64,12 @@ for the actual pruning scenario.
 pruner 80000 ~/.pocket/data application,blockstore,txindexer,state
 ```
 
-⚠️ Pruning full data could take `2-3 hours` to finish. Once finished, the following
-new directories are created side by side with the original directories. Pocket
-**Pruner does not modify the original directories**, which means that a node to be
-pruned **needs to have extra space to keep both the original data and pruned data
-at the same time**. ⚠️
+⚠️ Pruning full data could take `2-3 hours`, or more time depending on the
+parameters to pass, to finish. Once finished, the following new directories are
+created side by side with the original directories. Pocket Pruner does not
+modify the original directories, which means that a node to be pruned **needs
+to have extra space to keep both the original data and pruned data at the same
+time**. ⚠️
 
 - dataDir/application-new.db
 - dataDir/blockstore-new.db
@@ -91,11 +92,11 @@ rm -rf dataDir/txindexer.db
 mv dataDir/txindexer-new.db dataDir/txindexer.db
 ```
 
-After switching directories, you can start the pocket-core binary in a normal way.
+After switching directories, you can start the pocket-core process in a normal way.
 
 ## Pruning rules
 
-1. This is an offline tool. The pocket-core binary **MUST** be stopped while pruning.
+1. This is an offline tool. The pocket-core process **MUST** be stopped while pruning.
 
 2. **DO NOT** run pruned data on a node that is pointed as an external gateway of
    Pocket Network (Chain ID 0001) in `chains.json` because any Pocket gateway may
@@ -108,12 +109,12 @@ After switching directories, you can start the pocket-core binary in a normal wa
    syncing.
 
    _We **RECOMMEND** keeping at least `pos/BlocksPerSession * pocketcore/ClaimExpiration`
-   blocks in `application.db`, which is currently 96 blocks in the Pocket mainnet._
+   blocks in `application.db`, which is currently 96 blocks in Pocket MainNet._
 
 4. A tendermint block contains a field named [Evidence](https://github.com/tendermint/tendermint/blob/main/spec/consensus/evidence.md) that stores duplicated vote (i.e. double-sign)information if detected.
    When a node validates a proposed block with `Evidence`, it needs to access
    information at the height of its duplicated votes. The expiration period of
-   ` Evidence` is defined as the tendermint's parameter `ConsensusParams.Evidence.MaxAge`,
+   `Evidence` is defined as the tendermint's parameter `ConsensusParams.Evidence.MaxAge`,
    which is currently `120000000000`in Pocket MainNet. This means that `Evidence` in
    Pocket MainNet never expires. If the node fails to validate the duplicated
    vote information because of pruning, the Pocket process stops running.
@@ -216,7 +217,7 @@ $ curl -X POST -d '{"height":99799}' localhost:8082/v1/query/block
 
 ### How does pruning work?
 
-This work is being tracked in #3.
+This work is being tracked in [#3](https://github.com/msmania/pocket-pruner/issues/3).
 
 ### What is a `version`?
 
@@ -226,6 +227,6 @@ The words `version` and `height` are used interchangeably in the code. This is l
 
 Even though [pocket-core](https://github.com/pokt-network/pocket-core) no longer uses Amino, [iavl](https://github.com/cosmos/iavl) still does and therefore remains as a dependency.
 
-### What is a `verifier`` and how does it work?
+### What is a `verifier` and how does it work?
 
-`verifier.go` is only used for development purposes and the work to document it is being tracked in #2. For pruning only, it is unnecessary.
+`verifier.go` is only used for development purposes and the work to document it is being tracked in [#2](https://github.com/msmania/pocket-pruner/issues/2). For the pruning purpose, it is unnecessary.
