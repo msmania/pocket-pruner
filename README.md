@@ -1,10 +1,12 @@
 # Pocket Pruner <!-- omit in toc -->
 
+- [How to build](#how-to-build)
 - [How to prune data](#how-to-prune-data)
 - [Pruning rules](#pruning-rules)
 - [Example commands](#example-commands)
 - [Verification Mode (for developers only)](#verification-mode-for-developers-only)
 - [FAQ](#faq)
+  - [Does running a pruned node affect the network health negatively?](#does-running-a-pruned-node-affect-the-network-health-negatively)
   - [How does pruning work?](#how-does-pruning-work)
   - [What is a `version`?](#what-is-a-version)
   - [Why do we still use Amino](#why-do-we-still-use-amino)
@@ -24,6 +26,19 @@ chains). Node runners can run this tool offline to bring the total storage back 
 to `100 GB` or less in about `2-3 hours`. This step can be done periodically to keep
 the total disk storage within a limited range. Once pruning is done,
 `pruning pruned data again takes about an hour`.
+
+## How to build
+
+Building Pocket Pruner requires [Go](https://go.dev/dl/) version `1.20+`.
+
+Once you have installed Go, clone this repo and build Pocket Pruner by the
+following commands.
+
+```bash
+git clone https://github.com/msmania/pocket-pruner.git
+cd pocket-pruner
+go build -o pruner .
+```
 
 ## How to prune data
 
@@ -256,6 +271,20 @@ purpose**.  If pruning is completed successfully, you can assume the pruned data
 is consistent and safe to run.
 
 ## FAQ
+
+### Does running a pruned node affect the network health negatively?
+
+No.  Theoretically, if every single node in the network is pruned, the
+blockchian history is lost and a new node cannot be synced without a snapshot,
+but it's unrealistic to happen. If you are a large node runner, we recommend
+keeping some nodes unpruned.
+
+As our effort to keep the network safe and secure, we are running the following
+unpruned (= archival) nodes that can be referred as `Seeds` and/or
+`PersistentPeers` in `config.json`.  Please feel free to use them.
+
+- `6ea774aa45d88508eac9d5477bb6910d00628f23@pokt1645125373.c0d3r.org:26656`
+- `c415e22c085f1ae8f23b846052b664ec5d97a7db@pokt1651730731.c0d3r.org:26656`
 
 ### How does pruning work?
 
