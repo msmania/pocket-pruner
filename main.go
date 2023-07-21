@@ -237,7 +237,7 @@ func pruneBlockstore(
 	log.Println("Done - blockstore.db")
 }
 
-// pruneStateDb prunes the application.db from dir+"/state.db" to dir+"/state-new.db"
+// pruneStateDb prunes the state.db from dir+"/state.db" to dir+"/state-new.db"
 // and does not prune any key with the prefix in stateDbPrefixes.
 func pruneStateDb(
 	pruneBeforeBlock int,

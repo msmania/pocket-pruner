@@ -3,13 +3,13 @@
 - [How to build](#how-to-build)
 - [How to prune data](#how-to-prune-data)
 - [Pruning rules](#pruning-rules)
+- [How it works](#how-it-works)
 - [Example commands](#example-commands)
 - [Verification Mode (for developers only)](#verification-mode-for-developers-only)
 - [FAQ](#faq)
   - [Does running a pruned node affect the network health negatively?](#does-running-a-pruned-node-affect-the-network-health-negatively)
-  - [How does pruning work?](#how-does-pruning-work)
   - [What is a `version`?](#what-is-a-version)
-  - [Why do we still use Amino](#why-do-we-still-use-amino)
+  - [Why do we still use Amino?](#why-do-we-still-use-amino)
 
 Pocket Pruner is an offline pruner of [Pocket Network](https://www.pokt.network/)
 developed by [C0D3R](https://c0d3r.org/).
@@ -135,6 +135,10 @@ After switching directories, you can start the pocket-core process in a normal w
    vote information because of pruning, the Pocket process stops running.
 
    _For this reason, we **RECOMMEND** not pruning `state.db`._
+
+## How it works
+
+See [HOWITWORKS.md](HOWITWORKS.md) for the technical details.
 
 ## Example commands
 
@@ -286,14 +290,10 @@ unpruned (= archival) nodes that can be referred as `Seeds` and/or
 - `6ea774aa45d88508eac9d5477bb6910d00628f23@pokt1645125373.c0d3r.org:26656`
 - `c415e22c085f1ae8f23b846052b664ec5d97a7db@pokt1651730731.c0d3r.org:26656`
 
-### How does pruning work?
-
-This work is being tracked in [#3](https://github.com/msmania/pocket-pruner/issues/3).
-
 ### What is a `version`?
 
 The words `version` and `height` are used interchangeably in the code. This is legacy that was adopted from Cosmos' [iavl](https://github.com/cosmos/iavl) and [CometBFT (formerly known as Tendermint)](https://github.com/cometbft/cometbft).
 
-### Why do we still use Amino
+### Why do we still use Amino?
 
 Even though [pocket-core](https://github.com/pokt-network/pocket-core) no longer uses Amino, [iavl](https://github.com/cosmos/iavl) still does and therefore remains as a dependency.
