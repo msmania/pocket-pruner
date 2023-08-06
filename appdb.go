@@ -8,7 +8,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/tendermint/go-amino"
 )
 
@@ -164,60 +163,19 @@ func pruneAppDb(
 		}
 	}
 
-	for _, prefix := range appDbPrefixes {
-		log.Println("application.db -", string(prefix))
-		var count int64
-
-		iter := srcDb.NewIterator(util.BytesPrefix(prefix), nil)
-		for iter.Next() {
-			key := iter.Key()
-			value := iter.Value()
-			inserted := false
-
-			if len(key) == len(prefix) {
-				log.Fatal("Unknown: ", string(key))
+	// 3. IAVL+ tree: s/k:<namespace>/r<height>
+	for i := int64(pruneBeforeBlock); i <= latest; i++ {
+		log.Println("application.db - block", i)
+		for _, prefix := range appDbPrefixes {
+			key := append(prefix, 'r')
+			key = binary.BigEndian.AppendUint64(key, uint64(i))
+			value, err := srcDb.Get(key, nil)
+			if err != nil {
+				log.Fatal(err.Error())
 			}
-			keyType := key[len(prefix)]
-
-			// Under each of appDBPrefixes, data entries of application.db consists
-			// of three types of key-value data.  keyType is a single character
-			// indicating which type of data as follows.
-			//  'n' - Node key
-			//  'o' - Orphan key
-			//  'r' - Root key
-			// See pocket-core's store/iavl/nodedb.go for more details.
-			switch keyType {
-			case 'n':
-				// Node records are written through root records
-				inserted = true
-			case 'o':
-				verTo := int64(binary.BigEndian.Uint64(key[len(prefix)+1:]))
-				if verTo >= int64(pruneBeforeBlock) {
-					dstDb.Put(key, value, nil)
-				}
-				inserted = true
-			case 'r':
-				version := int64(binary.BigEndian.Uint64(key[len(prefix)+1:]))
-				if version >= int64(pruneBeforeBlock) {
-					dstDb.Put(key, value, nil)
-					recursiveTreeCopy(srcDb, dstDb, prefix, value)
-				}
-				inserted = true
-			default:
-				log.Fatal("Unknown: ", string(key))
-			}
-
-			if !inserted {
-				log.Fatal("Unknown: ", string(key))
-			}
-
-			// Periodically print progress
-			count++
-			if count%100000000 == 0 {
-				log.Println("application.db -", string(prefix), count)
-			}
+			dstDb.Put(key, value, nil)
+			recursiveTreeCopy(srcDb, dstDb, prefix, value)
 		}
-		iter.Release()
 	}
 	log.Println("Done - application.db")
 }
