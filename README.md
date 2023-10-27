@@ -284,11 +284,14 @@ but it's unrealistic to happen. If you are a large node runner, we recommend
 keeping some nodes unpruned.
 
 As our effort to keep the network safe and secure, we are running the following
-unpruned (= archival) nodes that can be referred as `Seeds` and/or
-`PersistentPeers` in `config.json`.  Please feel free to use them.
+unpruned (= archival) nodes that can be referred as `PersistentPeers` in
+`config.json`.  Please feel free to use them.
 
-- `6ea774aa45d88508eac9d5477bb6910d00628f23@pokt1645125373.c0d3r.org:26656`
-- `c415e22c085f1ae8f23b846052b664ec5d97a7db@pokt1651730731.c0d3r.org:26656`
+```
+3ffea1f790b241c5b051153e240c9ca424bfbc21@pokt1698092897.c0d3r.org:26656
+8f0e52699cde1aef1ef407038c2773fe3adf2c5f@pokt1698102410.c0d3r.org:26656
+b03e88859e621b2e5b479dd1670a8826d0b6c833@pokt1651083217.c0d3r.org:26656
+```
 
 ### What is a `version`?
 
